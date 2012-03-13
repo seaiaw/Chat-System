@@ -271,12 +271,7 @@ void* clientThread ( void *args ) {
                 		    	<< inet_ntoa ( clientAddress.sin_addr )
                 		    	<< ":" << ntohs ( clientAddress.sin_port )
                 		   		<< std :: endl;
-				}
-				for (int i = 0; i < userList.size(); i++)
-				{
-					std::cout << userList.at(i).userName << std::endl;
-				}
-				
+				}				
 
 
                 /*
@@ -329,9 +324,8 @@ void* clientThread ( void *args ) {
 				int receiverSocketFD = -1;
 				cookie = getNextUint32(buffer, offset);
 				std::string senderName = getNextString(buffer, offset);
-				std::string receiverName = getNextString(buffer, offset);
-				std::string packetMessage = getNextString(buffer, offset);
-			
+				std::string receiverName = getNextString(buffer, offset);			
+
 				for (int i = 0; i < userList.size(); i++)
 				{
 					if (userList.at(i).userName == receiverName)
@@ -363,7 +357,14 @@ void* clientThread ( void *args ) {
 					// Receiver Name
     				putNextString ( replyBuffer , replyOffset , receiverName );
 					// Packet Message
-    				putNextString ( replyBuffer , replyOffset , packetMessage );
+					std::string message = getNextString (buffer, offset);
+					while (message != "")
+					{
+    					putNextString ( replyBuffer , replyOffset , message );
+						message = getNextString (buffer, offset);
+					}
+                	// Terminate with two NULLs (i.e. terminate with an empty string)
+                	putNextString ( replyBuffer , replyOffset , "" );
     				// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
     				putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
 					///////////////////////////////
@@ -505,7 +506,7 @@ void* clientThread ( void *args ) {
 
                 // Do any processing here...
 				//////////////////////////////
-				// Send a Login request to the server
+				// Send a Login request to the sender
     			replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
     			// Request Type
     			putNextUint16 ( replyBuffer , replyOffset , RESPONSE_EXIT );
@@ -526,28 +527,49 @@ void* clientThread ( void *args ) {
        			 	close ( socketFD );
     			}
 
-       			char *replyBuffer = new char[ MAX_PACKET_LENGTH ];
+				delete[] replyBuffer;
+       			
+				char *replyBuffer = new char[ MAX_PACKET_LENGTH ];
         		if ( replyBuffer == NULL ) {
             		std :: cerr << "Error: Heap Over\n";
             		close ( socketFD );
             		return NULL;
         		}
-        		int replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+
+                // Read Lock the Data structure
+                pthread_rwlock_rdlock ( &userDataLock );
 
 				//////////////////////////////
-				// Send a Login request to the server
+				// Send a Login request to the other clients
     			replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
     			// Request Type
     			putNextUint16 ( replyBuffer , replyOffset , RESPONSE_EXIT_FWD );
     			// Length (we will fill this later on)
     			putNextUint16 ( replyBuffer , replyOffset , 0 );
     			// Status
-    			putNextUint32 ( replyBuffer , replyOffset , STATUS_SUCCESS );
+    			putNextUint32 ( replyBuffer , replyOffset , status );
     			// User name
     			putNextString ( replyBuffer , replyOffset , userName );
     			// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
     			putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
 				///////////////////////////////
+
+                // Unlock the Data structure
+                pthread_rwlock_unlock ( &userDataLock );
+
+				int everySocketFD = 0;
+				
+				for (int i = 0; i < userList.size(); i++)
+				{
+					if (userList.at(i).userName != userName)
+					{
+						everySocketFD = userList.at(i).socketFD;
+						if ( send ( everySocketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
+    	    				std :: cerr << "Error on send()\n";
+    	   			 		close ( socketFD );
+    					}
+					}
+				}
 
         		// Buffer should be deallocated
         		delete[] buffer;

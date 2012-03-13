@@ -353,6 +353,43 @@ main ( int argc , char **argv ) {
 
             // TALK
             else if ( command == "talk" ) {
+
+				// Send a TALK request to the server
+    			replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+    			// Request Type
+    			putNextUint16 ( replyBuffer , replyOffset , REQUEST_TALK );
+    			// Length (we will fill this later on)
+    			putNextUint16 ( replyBuffer , replyOffset , 0 );
+    			// Cookie
+    			putNextUint32 ( replyBuffer , replyOffset , cookie );
+
+                std :: string receiverName;
+				std :: string message;
+                ss >> receiverName;
+				// Sender Name
+				putNextString ( replyBuffer, replyOffset, userName);
+				// Receiver Name
+				putNextString ( replyBuffer, replyOffset, receiverName);
+                while ( ss ) {
+					ss >> message;
+
+                    // To eliminate the classic "last string repeating twice problem"
+                    if ( ss )
+                        putNextString ( replyBuffer , replyOffset , message );
+                }
+                // Terminate with two NULLs (i.e. terminate with an empty string)
+                putNextString ( replyBuffer , replyOffset , "" );
+				
+    			// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
+    			putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
+
+    			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
+        			std :: cerr << "Error on send()\n";
+        			close ( socketFD );
+        			return -1;
+    			}
+				
+				continue;
             }
 
             // YELL
@@ -495,6 +532,43 @@ main ( int argc , char **argv ) {
                     break;
                 }
 
+                case RESPONSE_TALK: {
+
+                    uint32_t status = getNextUint32 ( buffer , offset );
+
+					if (status == ERROR_USER_NOT_FOUND)
+					{
+						std::cerr<< "No such user" << std::endl;
+					}
+
+                    // etc...
+
+                    break;
+                }
+
+                case RESPONSE_TALK_FWD: {
+
+                    uint32_t status = getNextUint32 ( buffer , offset );
+					std::string senderName = getNextString(buffer, offset);
+					std::string receiverName = getNextString(buffer, offset);
+					std::string message = getNextString(buffer, offset);
+
+					if (status == STATUS_SUCCESS)
+					{
+						std::cout << std::endl << senderName << " says: ";
+						while (message != "")
+						{
+							std::cout << message << " ";
+							message = getNextString (buffer, offset);
+						}
+						std::cout << std::endl;
+					}
+
+                    // etc...
+
+                    break;
+                }
+
                 case RESPONSE_EXIT: {
 
                     uint32_t status = getNextUint32 ( buffer , offset );
@@ -513,6 +587,24 @@ main ( int argc , char **argv ) {
 					else
 					{
 						std::cout << "Exit failed" << std::endl;
+						break;
+					}
+				}
+
+                case RESPONSE_EXIT_FWD: {
+
+                    uint32_t status = getNextUint32 ( buffer , offset );
+					std::string senderName = getNextString (buffer, offset);
+
+                    // etc...
+					if (status == STATUS_SUCCESS)
+					{
+						std::cout << std::endl << senderName << " has logged out" << std::endl;
+						break;
+	                }
+					else
+					{
+						std::cout << "Errorneous packet" << std::endl;
 						break;
 					}
 				}
