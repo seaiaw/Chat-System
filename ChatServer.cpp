@@ -165,6 +165,8 @@ main ( int argc , char **argv ) {
 }
 
 void* clientThread ( void *args ) {
+	// messageStatus to inform Client Success (1) or Fail (0)
+	uint32_t messageStatus = 1;
 
     // Get the socketFD this thread has been assigned to
     int *userSocketFD = (int*) args;
@@ -226,6 +228,64 @@ void* clientThread ( void *args ) {
 
         // Step 3: Check what is the type of packet received
         switch ( type ) {
+            /*
+             * Event:
+             * Login Request
+             *
+
+             * Action:
+             * 1. Set Cookie value
+             * 2. Send LOGIN_RESPONSE
+             */
+	    	case REQUEST_LOGIN: {
+
+                // Get the cookie value from the packet
+                uint32_t cookie;
+                cookie = getNextUint32 ( buffer , offset );
+				std::string userName;
+				userName = getNextString (buffer, offset);
+				// Client bob connected from 127.0.0.1:58101
+    			std :: cout << "Client " << userName << " connected from "
+                		    << inet_ntoa ( clientAddress.sin_addr )
+                		    << ":" << ntohs ( clientAddress.sin_port )
+                		    << std :: endl;
+				// assign client port as cookie
+				cookie = ntohs ( clientAddress.sin_port );
+
+                /*
+                 * If you are modifying the data structures, then
+                 * Write lock.
+                 */
+                // Read Lock the Data structure
+                pthread_rwlock_rdlock ( &userDataLock );
+
+                // Do any processing here...
+				//////////////////////////////
+				// Send a Login request to the server
+    			replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+    			// Request Type
+    			putNextUint16 ( replyBuffer , replyOffset , RESPONSE_LOGIN );
+    			// Length (we will fill this later on)
+    			putNextUint16 ( replyBuffer , replyOffset , 0 );
+    			// Status
+    			putNextUint32 ( replyBuffer , replyOffset , messageStatus );
+    			// Cookie (need to assign Cookie)
+    			putNextUint32 ( replyBuffer , replyOffset , cookie);
+    			// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
+    			putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
+				///////////////////////////////
+
+                // Unlock the Data structure
+                pthread_rwlock_unlock ( &userDataLock );
+
+                // Send response here...
+    			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
+        			std :: cerr << "Error on send()\n";
+       			 	close ( socketFD );
+    			}
+
+                break;
+            }
 
             /*
              * Event:
@@ -255,8 +315,76 @@ void* clientThread ( void *args ) {
 
                 // Send response here...
 
+
                 break;
             }
+
+            /*
+             * Event:
+             * Exit Request
+             *
+
+             * Action:
+             * 1. Check if the cookie value is OK
+             * 2. Send RESPONSE_EXIT
+	     	 * 3. Send RESPONSE_EXIT_FWD
+             */
+            case REQUEST_EXIT: {
+
+                // Get the cookie value from the packet
+                uint32_t cookie;
+                cookie = getNextUint32 ( buffer , offset );
+				std::string userName;
+				userName = getNextString (buffer, offset);
+				// Client bob exited from 127.0.0.1:58101
+    			std :: cout << "Client " << userName << " exited from "
+                	    	<< inet_ntoa ( clientAddress.sin_addr )
+                	    	<< ":" << ntohs ( clientAddress.sin_port )
+                	    	<< std :: endl;	
+
+                /*
+                 * If you are modifying the data structures, then
+                 * Write lock.
+
+                 */
+                // Read Lock the Data structure
+                pthread_rwlock_rdlock ( &userDataLock );
+
+                // Do any processing here...
+				//////////////////////////////
+				// Send a Login request to the server
+    			replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+    			// Request Type
+    			putNextUint16 ( replyBuffer , replyOffset , RESPONSE_EXIT );
+    			// Length (we will fill this later on)
+    			putNextUint16 ( replyBuffer , replyOffset , 0 );
+    			// Cookie (need to assign Cookie)
+    			putNextUint32 ( replyBuffer , replyOffset , 0 );
+    			// User name
+    			putNextString ( replyBuffer , replyOffset , userName );
+    			// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
+    			putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
+				///////////////////////////////
+
+                // Unlock the Data structure
+                pthread_rwlock_unlock ( &userDataLock );
+
+                // Send response here...
+    			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
+        			std :: cerr << "Error on send()\n";
+       			 	close ( socketFD );
+    			}
+
+        		// Buffer should be deallocated
+        		delete[] buffer;
+        		delete[] replyBuffer;
+
+                // break;
+				close (socketFD);
+				return NULL;
+				
+            }
+
 
             // etc..
 

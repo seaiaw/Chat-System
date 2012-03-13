@@ -122,8 +122,14 @@ struct ResponseHeader {
  */
 enum {
     REQUEST_LOGIN         = 1 ,
-    REQUEST_SHOW          = 2
-
+    REQUEST_SHOW          = 2 ,
+    REQUEST_TALK	  = 3 ,
+    REQUEST_YELL	  = 4 ,
+    REQUEST_CREATEGROUP	  = 5 ,
+    REQUEST_DISCUSS	  = 6 ,
+    REQUEST_LEAVEGROUP	  = 7 ,
+    REQUEST_HELP	  = 8 ,
+    REQUEST_EXIT	  = 9 ,
     // etc...
 };
 
@@ -132,7 +138,15 @@ enum {
  */
 enum {
     RESPONSE_LOGIN         = 11 ,
-    RESPONSE_SHOW          = 12
+    RESPONSE_SHOW          = 12 ,
+    RESPONSE_TALK          = 13 ,
+    RESPONSE_YELL          = 14 ,
+    RESPONSE_CREATEGROUP   = 15 ,
+    RESPONSE_DISCUSS       = 16 ,
+    RESPONSE_LEAVEGROUP    = 17 ,
+    RESPONSE_HELP          = 18 ,
+    RESPONSE_EXIT          = 19 ,
+    RESPONSE_EXIT_FWD      = 191, //GC
 
     // etc ...
 };

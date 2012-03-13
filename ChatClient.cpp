@@ -160,6 +160,53 @@ main ( int argc , char **argv ) {
     }
 
     // Wait for a successful response
+    // -----------------------------------------------
+    // Step 1: First, get the 'type' and 'length' of the packet (first 2 fields are total 4 bytes)
+    size_t bufferSize = sizeof ( uint16_t ) + sizeof ( uint16_t );
+    char *buffer = new char[ bufferSize ];
+    if ( buffer == NULL ) {
+        std :: cerr << "Error: Heap Over\n";
+        close ( socketFD );
+        return -1;
+    }
+    // The flag MSG_WAITALL ensures that we get the all the 4 bytes in one recv()
+    if ( recv ( socketFD , buffer , bufferSize , MSG_WAITALL ) < bufferSize ) {
+        std :: cerr << "Error on recv(), did server terminate?\n";
+        close ( socketFD );
+        return -1;
+    }
+    // Read the 'type' and 'length' fields from the buffer using helper functions
+    int offset = 0;
+    uint16_t type , length;
+    type = getNextUint16 ( buffer , offset );
+    length = getNextUint16 ( buffer , offset );
+    delete[] buffer;
+
+    // Step 2: Now that we know the packet length, we can recv() the full packet
+    bufferSize = length - ( sizeof ( uint16_t ) + sizeof ( uint16_t ) );
+    buffer = new char[ bufferSize ];
+    if ( buffer == NULL ) {
+        std :: cerr << "Error: Heap Over\n";
+        close ( socketFD );
+        return -1;
+    }
+    if ( recv ( socketFD , buffer , bufferSize , MSG_WAITALL ) < bufferSize ) {
+        std :: cerr << "Error on recv(), did server terminate?\n";
+        close ( socketFD );
+        return -1;
+    }
+    // Put 'offset' as 0, so that the buffer is ready for reading using helper functions
+    offset = 0;
+
+    // get status
+    uint32_t status = getNextUint32(buffer, offset);
+	uint32_t cookie = getNextUint32(buffer, offset);
+
+	if (status != 1)
+		return 0;
+
+
+    //-----------------------------------------
 
     // Output the intro screen
     std :: cout << "=== Welcome " << userName << " to CS3103 Chat! ===\n"
@@ -252,6 +299,26 @@ main ( int argc , char **argv ) {
 
             // EXIT
             else if ( command == "exit" ) {
+				// Send a Exit request to the server
+    			replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+    			// Request Type
+    			putNextUint16 ( replyBuffer , replyOffset , REQUEST_EXIT );
+    			// Length (we will fill this later on)
+    			putNextUint16 ( replyBuffer , replyOffset , 0 );
+    			// Cookie (Need to use the Cookie assigned by ChatServer)
+    			putNextUint32 ( replyBuffer , replyOffset , 0 );
+    			// User name
+    			putNextString ( replyBuffer , replyOffset , userName );
+    			// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
+    			putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
+
+    			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
+        			std :: cerr << "Error on send()\n";
+        			close ( socketFD );
+        			return -1;
+    			}
+
+				continue;
             }
 
             // SHOW
@@ -322,6 +389,16 @@ main ( int argc , char **argv ) {
              * block forever. But for this assignment, it is ok, you are not required to do this.
              */
 
+ 			/* All Responses from the Server start with the following Response
+ 			 * Header:
+ 			 *
+ 			 *  |------------------------------------------|
+ 			 *  |    Response Type    |       Length       |
+ 			 *  |------------------------------------------|
+ 			 *  |                  Status                  |
+ 			 *  |------------------------------------------|
+			 */
+
             // Step 1: First, get the 'type' and 'length' of the packet (first 2 fields are total 4 bytes)
             size_t bufferSize = sizeof ( uint16_t ) + sizeof ( uint16_t );
             char *buffer = new char[ bufferSize ];
@@ -376,6 +453,27 @@ main ( int argc , char **argv ) {
                     break;
                 }
 
+                case RESPONSE_EXIT: {
+
+                    uint32_t status = getNextUint32 ( buffer , offset );
+
+                    // etc...
+					if (status)
+					{
+						std::cout << "You have logged out" << std::endl;
+
+	            		delete[] buffer;
+	   				 	close ( socketFD );
+	    				delete[] replyBuffer;
+
+						return 0;
+	                }
+					else
+					{
+						std::cout << "Exit failed" << std::endl;
+						break;
+					}
+				}
                 // etc...
 
                 default: {
