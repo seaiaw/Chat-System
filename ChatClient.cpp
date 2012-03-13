@@ -109,11 +109,6 @@ main ( int argc , char **argv ) {
         close ( socketFD );
         return -1;
     }
-    std :: cout << "Client " << userName << " "
-                << inet_ntoa ( clientAddress.sin_addr )
-                << ":" << ntohs ( clientAddress.sin_port )
-                << " connected to Server running on "
-                << serverIP << ":" << serverPort << std :: endl;
 
     // Create a buffer we can use to send packets to the server
     char *replyBuffer = new char[ MAX_PACKET_LENGTH ];
@@ -202,8 +197,21 @@ main ( int argc , char **argv ) {
     uint32_t status = getNextUint32(buffer, offset);
 	uint32_t cookie = getNextUint32(buffer, offset);
 
-	if (status != 1)
+	// if status != success, print fail message and end process
+	if (status != STATUS_SUCCESS)
+	{
+		if (status == ERROR_USERNAME)
+			std::cerr << "user name taken\n";
+		std::cerr << "Login failed" << std::endl;
+		close (socketFD);
 		return 0;
+	}
+
+    std :: cout << "Client " << userName << " "
+                << inet_ntoa ( clientAddress.sin_addr )
+                << ":" << ntohs ( clientAddress.sin_port )
+                << " connected to Server running on "
+                << serverIP << ":" << serverPort << std :: endl;
 
 
     //-----------------------------------------
@@ -323,6 +331,24 @@ main ( int argc , char **argv ) {
 
             // SHOW
             else if ( command == "show" ) {
+				// Send a SHOW request to the server
+    			replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+    			// Request Type
+    			putNextUint16 ( replyBuffer , replyOffset , REQUEST_SHOW );
+    			// Length (we will fill this later on)
+    			putNextUint16 ( replyBuffer , replyOffset , 0 );
+    			// Cookie
+    			putNextUint32 ( replyBuffer , replyOffset , cookie );
+    			// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
+    			putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
+
+    			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
+        			std :: cerr << "Error on send()\n";
+        			close ( socketFD );
+        			return -1;
+    			}
+				
+				continue;
             }
 
             // TALK
@@ -448,6 +474,22 @@ main ( int argc , char **argv ) {
 
                     uint32_t status = getNextUint32 ( buffer , offset );
 
+					if (status == STATUS_SUCCESS)
+					{
+						int i = 1;
+						std::cout << "=== Users Online ===" << std::endl;
+						std::string names = getNextString(buffer, offset);
+						while (names != "")
+						{
+							if (names == userName)
+								std::cout << i << ". " << names << " (you)" << std::endl;
+							else
+								std::cout << i << ". " << names << std::endl;
+							names = getNextString(buffer, offset);
+							++i;
+						}
+					}
+
                     // etc...
 
                     break;
@@ -458,7 +500,7 @@ main ( int argc , char **argv ) {
                     uint32_t status = getNextUint32 ( buffer , offset );
 
                     // etc...
-					if (status)
+					if (status == STATUS_SUCCESS)
 					{
 						std::cout << "You have logged out" << std::endl;
 

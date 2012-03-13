@@ -121,15 +121,16 @@ struct ResponseHeader {
  * @brief  Request Types
  */
 enum {
-    REQUEST_LOGIN         = 1 ,
-    REQUEST_SHOW          = 2 ,
-    REQUEST_TALK	  = 3 ,
-    REQUEST_YELL	  = 4 ,
-    REQUEST_CREATEGROUP	  = 5 ,
-    REQUEST_DISCUSS	  = 6 ,
-    REQUEST_LEAVEGROUP	  = 7 ,
-    REQUEST_HELP	  = 8 ,
-    REQUEST_EXIT	  = 9 ,
+    REQUEST_LOGIN       = 1 ,
+    REQUEST_SHOW		= 2 ,
+    REQUEST_TALK		= 3 ,
+    REQUEST_YELL	  	= 4 ,
+    REQUEST_CREATEGROUP	= 5 ,
+    REQUEST_DISCUSS	  	= 6 ,
+    REQUEST_LEAVEGROUP	= 7 ,
+    REQUEST_HELP	  	= 8 ,
+    REQUEST_EXIT	  	= 9 ,
+	REQUEST_JOINGROUP	= 51
     // etc...
 };
 
@@ -137,16 +138,21 @@ enum {
  * @brief  Response Types
  */
 enum {
-    RESPONSE_LOGIN         = 11 ,
-    RESPONSE_SHOW          = 12 ,
-    RESPONSE_TALK          = 13 ,
-    RESPONSE_YELL          = 14 ,
-    RESPONSE_CREATEGROUP   = 15 ,
-    RESPONSE_DISCUSS       = 16 ,
-    RESPONSE_LEAVEGROUP    = 17 ,
-    RESPONSE_HELP          = 18 ,
-    RESPONSE_EXIT          = 19 ,
-    RESPONSE_EXIT_FWD      = 191, //GC
+    RESPONSE_LOGIN			= 11 ,
+    RESPONSE_SHOW			= 12 ,
+    RESPONSE_TALK			= 13 ,
+    RESPONSE_YELL			= 14 ,
+    RESPONSE_CREATEGROUP	= 15 ,
+    RESPONSE_DISCUSS    	= 16 ,
+    RESPONSE_LEAVEGROUP	    = 17 ,
+    RESPONSE_HELP    	    = 18 ,
+    RESPONSE_EXIT    	    = 19 ,
+	RESPONSE_TALK_FWD		= 131,
+	RESPONSE_YELL_FWD		= 141,
+	RESPONSE_JOINGROUP_FWD	= 151,
+	RESPONSE_DISCUSS_FWD	= 161,
+    RESPONSE_EXIT_FWD		= 191
+	
 
     // etc ...
 };
@@ -157,6 +163,8 @@ enum {
 enum {
     STATUS_SUCCESS          = 0 ,
     ERROR_COOKIE_INVALID    = 1 ,
+	ERROR_USERNAME			= 2 ,
+	ERROR_USER_NOT_FOUND	= 3 ,
 
     // etc ...
 
