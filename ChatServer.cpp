@@ -26,6 +26,8 @@
 
 #include "ChatPacket.h"
 
+using namespace std;
+
 /*
  * Here, you can define a data structure to store information
  * about the users, as shown in the 'User' structure below.
@@ -46,20 +48,20 @@ enum {
 /**
  * @brief  Data type representing a list of users
  */
-typedef std :: vector <std::string> UserList;
+typedef vector <string> UserList;
 
 /**
  * @brief  Information about a User
  */
 struct User {
-    std :: string userName;          ///< User Name
+    string userName;          ///< User Name
     uint32_t      cookie;            ///< Cookie value
     int           socketFD;          ///< TCP Socket Descriptor
     int           groupChatStatus;   ///< Group chat status
     UserList*     groupChatUsers;    ///< Users in Group Chat (including this user)
 };
 
-typedef std :: vector <User> List;
+typedef vector <User> List;
 
 List userList;
 
@@ -75,14 +77,14 @@ pthread_rwlock_t userDataLock;
 void* clientThread ( void *args );
 
 /// @brief  Helper function to get the next NULL terminated string in the packet stream
-std :: string getNextString ( const char *buffer , int &offset );
+string getNextString ( const char *buffer , int &offset );
 /// @brief  Helper function to get the next uint32_t in the packet stream
 uint32_t getNextUint32 ( const char *buffer , int &offset );
 /// @brief  Helper function to get the next uint16_t in the packet stream
 uint16_t getNextUint16 ( const char *buffer , int &offset );
 
 /// @brief  Helper function to put the next NULL terminated string in the packet stream
-void putNextString ( char *buffer , int &offset , const std :: string &nextString );
+void putNextString ( char *buffer , int &offset , const string &nextString );
 /// @brief  Helper function to put the next uint32_t in the packet stream
 void putNextUint32 ( char *buffer , int &offset , uint32_t nextUint32 );
 /// @brief  Helper function to put the next uint16_t in the packet stream
@@ -96,14 +98,14 @@ main ( int argc , char **argv ) {
 
     // Get the service port to use
     uint16_t servicePort;
-    std :: cout << "=== Welcome to the Chat Server!! ===\n";
-    std :: cout << "Enter Service Port: ";
-    std :: cin >> servicePort;
+    cout << "=== Welcome to the Chat Server!! ===\n";
+    cout << "Enter Service Port: ";
+    cin >> servicePort;
 
     // Create a socket to listen for client connections
     int socketFD;
     if ( ( socketFD = socket ( AF_INET , SOCK_STREAM , 0 ) ) < 0 ) {
-        std :: cerr << "Error creating Server socket\n";
+        cerr << "Error creating Server socket\n";
         return -1;
     }
 
@@ -114,32 +116,31 @@ main ( int argc , char **argv ) {
     serverAddress.sin_addr.s_addr = INADDR_ANY;
     if ( bind ( socketFD , (const struct sockaddr*) &serverAddress ,
                 sizeof ( struct sockaddr_in ) ) < 0 ) {
-        std :: cerr << "Error on bind()\n";
+        cerr << "Error on bind()\n";
         close ( socketFD );
         return -1;
     }
 
     // Tell the OS that the server wants to listen on this socket
     if ( listen ( socketFD , 10 ) < 0 ) {
-        std :: cerr << "Error on listen()\n";
+        cerr << "Error on listen()\n";
         close ( socketFD );
         return -1;
     }
 
     // Initialise the Read-write lock
     if ( pthread_rwlock_init ( &userDataLock , NULL ) != 0 ) {
-        std :: cerr << "Error on pthread_rwlock_init()\n";
+        cerr << "Error on pthread_rwlock_init()\n";
         close ( socketFD );
         return -1;
     }
 
     // Step 2: Wait for connections
-    std :: cout << "Chat Server Running on 127.0.0.1:" << servicePort
-                << std :: endl;
+    cout << "Chat Server Running on 127.0.0.1:" << servicePort << endl;
     int newSocketFD;
     while ( true ) {
         if ( ( newSocketFD = accept ( socketFD , NULL , NULL ) ) < 0 ) {
-            std :: cerr << "Error on accept()\n";
+            cerr << "Error on accept()\n";
             close ( socketFD );
             return -1;
         }
@@ -149,14 +150,14 @@ main ( int argc , char **argv ) {
         int *userSocketFD = new int;
         *userSocketFD = newSocketFD;
         if ( userSocketFD == NULL ) {
-            std :: cerr << "Out of heap memory\n";
+            cerr << "Out of heap memory\n";
             close ( socketFD );
             return -1;
         }
 
         // Also, tell the thread the socket FD it should use for this user
         if ( pthread_create ( &threadID , NULL , clientThread , userSocketFD ) != 0 ) {
-            std :: cerr << "Error on pthread_create()\n";
+            cerr << "Error on pthread_create()\n";
             close ( socketFD );
             return -1;
         }
@@ -184,7 +185,7 @@ void* clientThread ( void *args ) {
     socklen_t addressLength = sizeof ( struct sockaddr_in );
     if ( getpeername ( socketFD , (struct sockaddr*) &clientAddress ,
                        &addressLength ) != 0 ) {
-        std :: cerr << "Error on getpeername()\n";
+        cerr << "Error on getpeername()\n";
         close ( socketFD );
         return NULL;
     }
@@ -197,7 +198,7 @@ void* clientThread ( void *args ) {
         size_t bufferSize = sizeof ( uint16_t ) + sizeof ( uint16_t );
         char *buffer = new char[ bufferSize ];
         if ( buffer == NULL ) {
-            std :: cerr << "Error: Heap Over\n";
+            cerr << "Error: Heap Over\n";
             close ( socketFD );
             return NULL;
         }
@@ -215,7 +216,7 @@ void* clientThread ( void *args ) {
         bufferSize = length - ( sizeof ( uint16_t ) + sizeof ( uint16_t ) );
         buffer = new char[ bufferSize ];
         if ( buffer == NULL ) {
-            std :: cerr << "Error: Heap Over\n";
+            cerr << "Error: Heap Over\n";
             close ( socketFD );
             return NULL;
         }
@@ -227,7 +228,7 @@ void* clientThread ( void *args ) {
         // Keep a reply buffer ready for sending a reply back
         char *replyBuffer = new char[ MAX_PACKET_LENGTH ];
         if ( replyBuffer == NULL ) {
-            std :: cerr << "Error: Heap Over\n";
+            cerr << "Error: Heap Over\n";
             close ( socketFD );
             return NULL;
         }
@@ -249,7 +250,7 @@ void* clientThread ( void *args ) {
                 // Get the cookie value from the packet
                 uint32_t cookie;
                 cookie = getNextUint32 ( buffer , offset );
-				std::string userName;
+				string userName;
 				userName = getNextString (buffer, offset);
 				for (int i = 0; i < userList.size(); i++)
 				{
@@ -267,10 +268,10 @@ void* clientThread ( void *args ) {
 					userList.push_back(currentUser);
 
 					// Client bob connected from 127.0.0.1:58101
-    				std :: cout << "Client " << currentUser.userName << " connected from "
-                		    	<< inet_ntoa ( clientAddress.sin_addr )
-                		    	<< ":" << ntohs ( clientAddress.sin_port )
-                		   		<< std :: endl;
+    				cout << "Client " << currentUser.userName << " connected from "
+                		 << inet_ntoa ( clientAddress.sin_addr )
+                		 << ":" << ntohs ( clientAddress.sin_port )
+                		 << endl;
 				}				
 
 
@@ -292,7 +293,7 @@ void* clientThread ( void *args ) {
     			// Status
     			putNextUint32 ( replyBuffer , replyOffset , status );
     			// Cookie (need to assign Cookie)
-    			putNextUint32 ( replyBuffer , replyOffset , cookie);
+    			putNextUint32 ( replyBuffer , replyOffset , currentUser.cookie);
     			// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
     			putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
 				///////////////////////////////
@@ -302,7 +303,7 @@ void* clientThread ( void *args ) {
 
                 // Send response here...
     			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
-        			std :: cerr << "Error on send()\n";
+        			cerr << "Error on send()\n";
        			 	close ( socketFD );
     			}
 
@@ -323,8 +324,8 @@ void* clientThread ( void *args ) {
 				uint32_t cookie;
 				int receiverSocketFD = -1;
 				cookie = getNextUint32(buffer, offset);
-				std::string senderName = getNextString(buffer, offset);
-				std::string receiverName = getNextString(buffer, offset);			
+				string senderName = getNextString(buffer, offset);
+				string receiverName = getNextString(buffer, offset);			
 
 				for (int i = 0; i < userList.size(); i++)
 				{
@@ -357,7 +358,7 @@ void* clientThread ( void *args ) {
 					// Receiver Name
     				putNextString ( replyBuffer , replyOffset , receiverName );
 					// Packet Message
-					std::string message = getNextString (buffer, offset);
+					string message = getNextString (buffer, offset);
 					while (message != "")
 					{
     					putNextString ( replyBuffer , replyOffset , message );
@@ -373,7 +374,7 @@ void* clientThread ( void *args ) {
                 	pthread_rwlock_unlock ( &userDataLock );
 
     				if ( send ( receiverSocketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
-        				std :: cerr << "Error on send()\n";
+        				cerr << "Error on send()\n";
        				 	close ( receiverSocketFD );
     				}
 				}
@@ -382,7 +383,7 @@ void* clientThread ( void *args ) {
 
 				char *replyBuffer = new char[ MAX_PACKET_LENGTH ];
         		if ( replyBuffer == NULL ) {
-            		std :: cerr << "Error: Heap Over\n";
+            		cerr << "Error: Heap Over\n";
             		close ( socketFD );
             		return NULL;
         		}
@@ -408,7 +409,123 @@ void* clientThread ( void *args ) {
                	pthread_rwlock_unlock ( &userDataLock );
 
     			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
-        			std :: cerr << "Error on send()\n";
+        			cerr << "Error on send()\n";
+       			 	close ( socketFD );
+    			}
+				
+				// not a serious error, reset status to STATUS_SUCCESS after report error to sender
+				status = STATUS_SUCCESS;
+
+				break;
+			}
+
+			/*
+			 * Event:
+
+			 * Yell Request
+			 * 
+			 * Action:
+			 * 1. Check if the cookie value is OK
+			 * 2. Reply a message to sender
+			 * 3. Forward message to the all other online users
+			 */
+			case REQUEST_YELL: {
+				// Get the cookie value from the packet
+				uint32_t cookie;
+				cookie = getNextUint32(buffer, offset);	
+				string userName;	
+				int receiverSocketFD;
+
+				for (int i = 0; i < userList.size(); i++)
+				{
+					if (userList.at(i).cookie == cookie)
+					{
+						userName = userList.at(i).userName;
+						break;
+					}
+				}
+
+				if (userList.size() == 1)
+					status = ERROR_NO_USER_ONLINE;
+				
+				if (status == STATUS_SUCCESS)
+				{
+	                // Read Lock the Data structure
+	                pthread_rwlock_rdlock ( &userDataLock );
+
+					//////////////////////////////
+					// Login Response packet to the Client
+    				replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+    				// Response Type
+    				putNextUint16 ( replyBuffer , replyOffset , RESPONSE_YELL_FWD );
+    				// Length (we will fill this later on)
+    				putNextUint16 ( replyBuffer , replyOffset , 0 );
+    				// Status
+    				putNextUint32 ( replyBuffer , replyOffset , status );
+    				// Sender Name
+    				putNextString ( replyBuffer , replyOffset , userName );
+					// Packet Message
+					string message = getNextString (buffer, offset);
+					while (message != "")
+					{
+    					putNextString ( replyBuffer , replyOffset , message );
+						message = getNextString (buffer, offset);
+					}
+                	// Terminate with two NULLs (i.e. terminate with an empty string)
+                	putNextString ( replyBuffer , replyOffset , "" );
+    				// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
+    				putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
+					///////////////////////////////
+
+                	// Unlock the Data structure
+                	pthread_rwlock_unlock ( &userDataLock );
+					
+					// send to all online users
+					for (int i = 0; i < userList.size(); i++)
+					{
+						if (userList.at(i).cookie != cookie)
+						{
+							receiverSocketFD = userList.at(i).socketFD;
+    						if ( send ( receiverSocketFD , replyBuffer , replyOffset , 0 ) < 0 )
+							{
+        						cerr << "Error on send()\n";
+       				 			close ( receiverSocketFD );
+    						}
+						}
+					}
+				}
+				
+				delete[] replyBuffer;
+
+				char *replyBuffer = new char[ MAX_PACKET_LENGTH ];
+        		if ( replyBuffer == NULL ) {
+            		cerr << "Error: Heap Over\n";
+            		close ( socketFD );
+            		return NULL;
+        		}
+
+	            // Read Lock the Data structure
+	            pthread_rwlock_rdlock ( &userDataLock );
+
+               	// Do any processing here...
+				//////////////////////////////
+				// Login Response packet to the Client
+   				replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+   				// Request Type
+   				putNextUint16 ( replyBuffer , replyOffset , RESPONSE_YELL );
+   				// Length (we will fill this later on)
+   				putNextUint16 ( replyBuffer , replyOffset , 0 );
+   				// Status
+   				putNextUint32 ( replyBuffer , replyOffset , status );
+   				// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
+   				putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
+				///////////////////////////////
+
+               	// Unlock the Data structure
+               	pthread_rwlock_unlock ( &userDataLock );
+
+    			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
+        			cerr << "Error on send()\n";
        			 	close ( socketFD );
     			}
 				
@@ -459,12 +576,154 @@ void* clientThread ( void *args ) {
 
                 // Send response here...
     			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
-        			std :: cerr << "Error on send()\n";
+        			cerr << "Error on send()\n";
        			 	close ( socketFD );
     			}
 
                 break;
             }
+
+			/*
+			 * Event:
+			 * CreateGroup Request
+			 * 
+			 * Action:
+			 * 1. Check if the cookie value is OK
+			 * 2. Reply a message to sender
+			 * 3. Forward invitation to the invited users
+			 */
+			case REQUEST_CREATEGROUP: {
+				// Get the cookie value from the packet
+				uint32_t cookie;
+				cookie = getNextUint32(buffer, offset);	
+				string userName;	
+				int receiverSocketFD;
+
+					currentUser.userName = userName;
+					currentUser.socketFD = socketFD;
+					currentUser.cookie = ntohs ( clientAddress.sin_port );
+					currentUser.groupChatStatus = GROUPCHAT_EMPTY;
+					currentUser.groupChatUsers = &groupList; 
+
+				for (int i = 0; i < userList.size(); i++)
+				{
+					if (userList.at(i).cookie == cookie)
+					{
+						userName = userList.at(i).userName;
+						break;
+					}
+				}
+
+				if (userList.size() == 1)
+					status = ERROR_NO_USER_ONLINE;
+				
+				if (status == STATUS_SUCCESS)
+				{
+	                // Read Lock the Data structure
+	                pthread_rwlock_rdlock ( &userDataLock );
+
+					//////////////////////////////
+					// Login Response packet to the Client
+    				replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+    				// Response Type
+    				putNextUint16 ( replyBuffer , replyOffset , RESPONSE_YELL_FWD );
+    				// Length (we will fill this later on)
+    				putNextUint16 ( replyBuffer , replyOffset , 0 );
+    				// Status
+    				putNextUint32 ( replyBuffer , replyOffset , status );
+    				// Sender Name
+    				putNextString ( replyBuffer , replyOffset , userName );
+					// Packet Message
+					string message = getNextString (buffer, offset);
+					while (message != "")
+					{
+    					putNextString ( replyBuffer , replyOffset , message );
+						message = getNextString (buffer, offset);
+					}
+                	// Terminate with two NULLs (i.e. terminate with an empty string)
+                	putNextString ( replyBuffer , replyOffset , "" );
+    				// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
+    				putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
+					///////////////////////////////
+
+                	// Unlock the Data structure
+                	pthread_rwlock_unlock ( &userDataLock );
+					
+					// send to all online users
+					for (int i = 0; i < userList.size(); i++)
+					{
+						if (userList.at(i).cookie != cookie)
+						{
+							receiverSocketFD = userList.at(i).socketFD;
+    						if ( send ( receiverSocketFD , replyBuffer , replyOffset , 0 ) < 0 )
+							{
+        						cerr << "Error on send()\n";
+       				 			close ( receiverSocketFD );
+    						}
+						}
+					}
+				}
+				
+				delete[] replyBuffer;
+
+				char *replyBuffer = new char[ MAX_PACKET_LENGTH ];
+        		if ( replyBuffer == NULL ) {
+            		cerr << "Error: Heap Over\n";
+            		close ( socketFD );
+            		return NULL;
+        		}
+
+	            // Read Lock the Data structure
+	            pthread_rwlock_rdlock ( &userDataLock );
+
+               	// Do any processing here...
+				//////////////////////////////
+				// Login Response packet to the Client
+   				replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+   				// Request Type
+   				putNextUint16 ( replyBuffer , replyOffset , RESPONSE_YELL );
+   				// Length (we will fill this later on)
+   				putNextUint16 ( replyBuffer , replyOffset , 0 );
+   				// Status
+   				putNextUint32 ( replyBuffer , replyOffset , status );
+   				// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
+   				putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
+				///////////////////////////////
+
+               	// Unlock the Data structure
+               	pthread_rwlock_unlock ( &userDataLock );
+
+    			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
+        			cerr << "Error on send()\n";
+       			 	close ( socketFD );
+    			}
+				
+				// not a serious error, reset status to STATUS_SUCCESS after report error to sender
+				status = STATUS_SUCCESS;
+
+				break;
+			}
+
+			/*
+			 * Event:
+			 * LeaveGroup Request
+			 * 
+			 * Action:
+			 * 1. Check if the cookie value is OK
+			 * 2. Reply a message to sender
+			 * 3. Forward notification to the group members
+			 */
+			case REQUEST_LEAVEGROUP: {
+
+				// !!! INCOMPLETE !!!
+
+				// set groupChatStatus back to empty
+				currentUser.groupChatStatus = GROUPCHAT_EMPTY;
+				// erase all the groupChatUsers record
+				currentUser.groupChatUsers = &groupList; 
+				
+				break;
+			}
 
             /*
              * Event:
@@ -481,7 +740,7 @@ void* clientThread ( void *args ) {
                 // Get the cookie value from the packet
                 uint32_t cookie;
                 cookie = getNextUint32 ( buffer , offset );
-				std::string userName;
+				string userName;
 				userName = getNextString (buffer, offset);
 				for (int i = 0; i < userList.size(); i++)
 				{
@@ -491,10 +750,10 @@ void* clientThread ( void *args ) {
 					}
 				}
 				// Client bob exited from 127.0.0.1:58101
-    			std :: cout << "Client " << userName << " exited from "
-                	    	<< inet_ntoa ( clientAddress.sin_addr )
-                	    	<< ":" << ntohs ( clientAddress.sin_port )
-                	    	<< std :: endl;	
+    			cout << "Client " << userName << " exited from "
+                	 << inet_ntoa ( clientAddress.sin_addr )
+                	 << ":" << ntohs ( clientAddress.sin_port )
+                	 << endl;	
 
                 /*
                  * If you are modifying the data structures, then
@@ -523,7 +782,7 @@ void* clientThread ( void *args ) {
 
                 // Send response here...
     			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
-        			std :: cerr << "Error on send()\n";
+        			cerr << "Error on send()\n";
        			 	close ( socketFD );
     			}
 
@@ -531,7 +790,7 @@ void* clientThread ( void *args ) {
        			
 				char *replyBuffer = new char[ MAX_PACKET_LENGTH ];
         		if ( replyBuffer == NULL ) {
-            		std :: cerr << "Error: Heap Over\n";
+            		cerr << "Error: Heap Over\n";
             		close ( socketFD );
             		return NULL;
         		}
@@ -565,7 +824,7 @@ void* clientThread ( void *args ) {
 					{
 						everySocketFD = userList.at(i).socketFD;
 						if ( send ( everySocketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
-    	    				std :: cerr << "Error on send()\n";
+    	    				cerr << "Error on send()\n";
     	   			 		close ( socketFD );
     					}
 					}
@@ -595,7 +854,7 @@ void* clientThread ( void *args ) {
 
 		if (status != STATUS_SUCCESS)
 		{
-			std::cerr << "Error occurred" << std::endl;
+			cerr << "Error occurred" << endl;
 			close (socketFD);
 			return NULL;
 		}
@@ -603,15 +862,14 @@ void* clientThread ( void *args ) {
 
     // If we broke out of the loop, then the connection was closed or
     // there was an error
-    std :: cerr << "Client closed connection unexpectedly\n";
+    cerr << "Client closed connection unexpectedly\n";
     close ( socketFD );
 
     // Exit the thread
     return NULL;
 }
 
-std :: string
-getNextString ( const char *buffer , int &offset ) {
+string getNextString ( const char *buffer , int &offset ) {
 
     char nextString [ MAX_CHAT_LENGTH ];
 
@@ -624,11 +882,10 @@ getNextString ( const char *buffer , int &offset ) {
     nextString[i - 1] = '\0';
 
     // The value of offset is now ready for the next call to getNextThing()
-    return std :: string ( nextString );
+    return string ( nextString );
 }
 
-uint32_t
-getNextUint32 ( const char *buffer , int &offset ) {
+uint32_t getNextUint32 ( const char *buffer , int &offset ) {
 
     // Read the next uint32_t
     uint32_t value;
@@ -642,8 +899,7 @@ getNextUint32 ( const char *buffer , int &offset ) {
     return value;
 }
 
-uint16_t
-getNextUint16 ( const char *buffer , int &offset ) {
+uint16_t getNextUint16 ( const char *buffer , int &offset ) {
 
     // Read the next uint16_t
     uint16_t value;
@@ -657,8 +913,7 @@ getNextUint16 ( const char *buffer , int &offset ) {
     return value;
 }
 
-void
-putNextString ( char *buffer , int &offset , const std :: string &nextString ) {
+void putNextString ( char *buffer , int &offset , const string &nextString ) {
 
     // Write the string byte by byte till we reach NULL
     int i = 0;
@@ -669,8 +924,7 @@ putNextString ( char *buffer , int &offset , const std :: string &nextString ) {
     // The value of offset is now ready for the next call to putNextThing()
 }
 
-void
-putNextUint32 ( char *buffer , int &offset , uint32_t nextUint32 ) {
+void putNextUint32 ( char *buffer , int &offset , uint32_t nextUint32 ) {
 
     // Convert from Host to Network order
     nextUint32 = htonl ( nextUint32 );
@@ -682,8 +936,7 @@ putNextUint32 ( char *buffer , int &offset , uint32_t nextUint32 ) {
     offset += sizeof ( uint32_t );
 }
 
-void
-putNextUint16 ( char *buffer , int &offset , uint16_t nextUint16 ) {
+void putNextUint16 ( char *buffer , int &offset , uint16_t nextUint16 ) {
 
     // Convert from Host to Network order
     nextUint16 = htons ( nextUint16 );

@@ -1,12 +1,4 @@
-/**
- * @file
- * @brief  Client side of the Chat Application
- *
- * @details  For the client, I have provided code for using the
- *   select() function, and connecting to the server.
- *
- * @author  Kartik S
- */
+// ChatClient.cpp
 
 #include <iostream>
 #include <sstream>
@@ -21,91 +13,64 @@
 
 #include "ChatPacket.h"
 
-/**
- * These are some helper functions to read/write to buffers.
- *
- * The first parameter is a buffer of required size.
- *
- * The second parameter is a byte offset into the buffer. The value
- * is read/written at buffer[offset]. The function
- * automatically increases the offset by the number of bytes you
- * read/write into the buffer.
- *
- * The functions also take care of Host to Network order conversion
- * and vice versa.
- */
+using namespace std;
 
 /// @brief  Helper function to get the next NULL terminated string in the packet stream
-std :: string getNextString ( const char *buffer , int &offset );
+string getNextString ( const char *buffer , int &offset );
 /// @brief  Helper function to get the next uint32_t in the packet stream
 uint32_t getNextUint32 ( const char *buffer , int &offset );
 /// @brief  Helper function to get the next uint16_t in the packet stream
 uint16_t getNextUint16 ( const char *buffer , int &offset );
 
 /// @brief  Helper function to put the next NULL terminated string in the packet stream
-void putNextString ( char *buffer , int &offset , const std :: string &nextString );
+void putNextString ( char *buffer , int &offset , const string &nextString );
 /// @brief  Helper function to put the next uint32_t in the packet stream
 void putNextUint32 ( char *buffer , int &offset , uint32_t nextUint32 );
 /// @brief  Helper function to put the next uint16_t in the packet stream
 void putNextUint16 ( char *buffer , int &offset , uint16_t nextUint16 );
 
 /// @brief  Starting point of the client
-int
-main ( int argc , char **argv ) {
-
-    /*
-     * The std::string data type in C++ is similar to String data
-     * type in Java
-     *
-     * uint16_t is an integer of size 16 bits
-     *
-     * If you are not familiar with the C++ input/output, please see
-     * this simple tutorial --
-     * http://www.cplusplus.com/doc/tutorial/basic_io/
-     *
-     */
+int main ( int argc , char **argv ) {
 
     // Get the Server's IP and Port
-    std :: string serverIP;
+    string serverIP;
     uint16_t serverPort;
-    std :: cout << "=== Welcome to the Chat Client!! === \n";
-    std :: cout << "Enter Chat Server IP: ";
-    std :: cin >> serverIP;
-    std :: cout << "Enter Chat Server Port: ";
-    std :: cin >> serverPort;
-
-    // Get User name
-    std :: string userName;
-    std :: cout << "Enter user name: ";
-    std :: cin >> userName;
+    string userName;
+    cout << "=== Welcome to the Chat Client!! === \n";
+    cout << "Enter Chat Server IP: ";
+    cin >> serverIP;
+    cout << "Enter Chat Server Port: ";
+    cin >> serverPort;
+    cout << "Enter user name: ";
+    cin >> userName;
 
     // Connect to the server
-    // Step 1: Create a socket
+    // step 1: socket
     int socketFD;
     if ( ( socketFD = socket ( AF_INET , SOCK_STREAM , 0 ) ) < 0 ) {
-        std :: cerr << "Error on socket()\n";
+        cerr << "Error on socket()\n";
         return -1;
     }
 
-    // Step 2: Set the server IP and Address
+    // step 2: server IP and address
     struct sockaddr_in serverAddress;
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_addr.s_addr = inet_addr ( serverIP.c_str() );
     serverAddress.sin_port = htons ( serverPort );
 
-    // Step 3: Connect to the server
+    // step 3: connect
     if ( connect ( socketFD , (struct sockaddr*) &serverAddress ,
                    sizeof ( struct sockaddr_in ) ) != 0 ) {
-        std :: cerr << "Error on connect(), is the server running?\n";
+        cerr << "Error on connect(), is the server running?\n";
         return -1;
     }
 
-    // Get Client's IP and Port (assigned by the OS)
+    // client IP and port
     struct sockaddr_in clientAddress;
     socklen_t addressLength = sizeof ( struct sockaddr_in );
     if ( getsockname ( socketFD , (struct sockaddr*) &clientAddress ,
                        &addressLength ) != 0 ) {
-        std :: cerr << "Error on getsockname()\n";
+        cerr << "Error on getsockname()\n";
         close ( socketFD );
         return -1;
     }
@@ -113,7 +78,7 @@ main ( int argc , char **argv ) {
     // Create a buffer we can use to send packets to the server
     char *replyBuffer = new char[ MAX_PACKET_LENGTH ];
     if ( replyBuffer == NULL ) {
-        std :: cerr << "Error: Heap over\n";
+        cerr << "Error: Heap over\n";
         close ( socketFD );
         return -1;
     }
@@ -149,24 +114,23 @@ main ( int argc , char **argv ) {
     putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
 
     if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
-        std :: cerr << "Error on send()\n";
+        cerr << "Error on send()\n";
         close ( socketFD );
         return -1;
     }
 
     // Wait for a successful response
     // -----------------------------------------------
-    // Step 1: First, get the 'type' and 'length' of the packet (first 2 fields are total 4 bytes)
     size_t bufferSize = sizeof ( uint16_t ) + sizeof ( uint16_t );
     char *buffer = new char[ bufferSize ];
     if ( buffer == NULL ) {
-        std :: cerr << "Error: Heap Over\n";
+        cerr << "Error: Heap Over\n";
         close ( socketFD );
         return -1;
     }
     // The flag MSG_WAITALL ensures that we get the all the 4 bytes in one recv()
     if ( recv ( socketFD , buffer , bufferSize , MSG_WAITALL ) < bufferSize ) {
-        std :: cerr << "Error on recv(), did server terminate?\n";
+        cerr << "Error on recv(), did server terminate?\n";
         close ( socketFD );
         return -1;
     }
@@ -177,16 +141,15 @@ main ( int argc , char **argv ) {
     length = getNextUint16 ( buffer , offset );
     delete[] buffer;
 
-    // Step 2: Now that we know the packet length, we can recv() the full packet
     bufferSize = length - ( sizeof ( uint16_t ) + sizeof ( uint16_t ) );
     buffer = new char[ bufferSize ];
     if ( buffer == NULL ) {
-        std :: cerr << "Error: Heap Over\n";
+        cerr << "Error: Heap Over\n";
         close ( socketFD );
         return -1;
     }
     if ( recv ( socketFD , buffer , bufferSize , MSG_WAITALL ) < bufferSize ) {
-        std :: cerr << "Error on recv(), did server terminate?\n";
+        cerr << "Error on recv(), did server terminate?\n";
         close ( socketFD );
         return -1;
     }
@@ -196,36 +159,37 @@ main ( int argc , char **argv ) {
     // get status
     uint32_t status = getNextUint32(buffer, offset);
 	uint32_t cookie = getNextUint32(buffer, offset);
+	cout << cookie << endl;
 
 	// if status != success, print fail message and end process
 	if (status != STATUS_SUCCESS)
 	{
 		if (status == ERROR_USERNAME)
-			std::cerr << "user name taken\n";
-		std::cerr << "Login failed" << std::endl;
+			cerr << "user name taken\n";
+		cerr << "Login failed" << endl;
 		close (socketFD);
 		return 0;
 	}
 
-    std :: cout << "Client " << userName << " "
-                << inet_ntoa ( clientAddress.sin_addr )
-                << ":" << ntohs ( clientAddress.sin_port )
-                << " connected to Server running on "
-                << serverIP << ":" << serverPort << std :: endl;
+    cout << "Client " << userName << " "
+         << inet_ntoa ( clientAddress.sin_addr )
+         << ":" << ntohs ( clientAddress.sin_port )
+         << " connected to Server running on "
+         << serverIP << ":" << serverPort << endl;
 
 
     //-----------------------------------------
 
     // Output the intro screen
-    std :: cout << "=== Welcome " << userName << " to CS3103 Chat! ===\n"
-                << "1. show : Show all users online\n"
-                << "2. talk <user> <message> : Send message to user\n"
-                << "3. yell <message> : Send message to all users\n"
-                << "4. creategroup <user1> <user2> ... : Create group chat\n"
-                << "5. discuss <message> : Send message to users in the group chat\n"
-                << "6. leavegroup : Leave group chat\n"
-                << "7. help : Display all commands\n"
-                << "8. exit : Disconnect from Chat server\n\n";
+    cout << "=== Welcome " << userName << " to CS3103 Chat! ===\n"
+         << "1. show : Show all users online\n"
+         << "2. talk <user> <message> : Send message to user\n"
+         << "3. yell <message> : Send message to all users\n"
+         << "4. creategroup <user1> <user2> ... : Create group chat\n"
+         << "5. discuss <message> : Send message to users in the group chat\n"
+         << "6. leavegroup : Leave group chat\n"
+         << "7. help : Display all commands\n"
+         << "8. exit : Disconnect from Chat server\n\n";
 
     /**
      * Some points to remember about C++ input/output -
@@ -234,22 +198,17 @@ main ( int argc , char **argv ) {
      */
 
     // Output the prompt
-    std :: cout << "> ";
-    std :: cout.flush();
+    cout << "> ";
+    cout.flush();
     // Remove the trailing '\n' left by 'cin'
-    char trailingLinefeed = std :: cin.get();
+    char trailingLinefeed = cin.get();
 
     // Infinite loop until user inputs 'exit'
     while ( true ) {
 
         // We need to get input from the socket as well as from the user's keyboard
         // The select() function can be used for this (See Section 14.5 of Richard Stevens UNIX Textbook)
-        /*
-         * Note:
-         * In Java, there seems to be no select() function (I googled and didn't find one).
-         * So, In Java you need to create 2 threads - one for reading socket input, and the other
-         * for reading keyboard input.
-         */
+
         fd_set readFDs , exceptionFDs;
         FD_ZERO ( &readFDs );
         FD_ZERO ( &exceptionFDs );
@@ -260,14 +219,14 @@ main ( int argc , char **argv ) {
 
         // Wait for input using select()
         if ( select ( socketFD + 1 , &readFDs , NULL , &exceptionFDs , NULL ) < 0 ) {
-            std :: cerr << "Error on select()\n";
+            cerr << "Error on select()\n";
             close ( socketFD );
             return -1;
         }
 
         // Check if any exception occurred
         if ( FD_ISSET ( socketFD , &exceptionFDs ) || FD_ISSET ( STDIN_FILENO , &exceptionFDs ) ) {
-            std :: cerr << "Unexpected error while using select(), did the server terminate?\n";
+            cerr << "Unexpected error while using select(), did the server terminate?\n";
             close ( socketFD );
             return -1;
         }
@@ -276,23 +235,18 @@ main ( int argc , char **argv ) {
         // Keyboard Input from the user
         if ( FD_ISSET ( STDIN_FILENO , &readFDs ) ) {
 
-            /*
-             * If you are not comfortable with these C++ I/O functions,
-             * then you can use the C versions instead.
-             */
-
             // Now we know that we will not block on using 'getline'
             // Note that we should read ONLY ONE line, otherwise we would block!
-            std :: string inputLine;
+            string inputLine;
             // Read one line from the input (this is the C++ version of 'getline')
-            std :: getline ( std :: cin , inputLine );
+            getline ( cin , inputLine );
 
             // Put the string into a string stream (similar to sscanf() in C)
             // Now we can read from 'ss' just like we do with 'cin'
-            std :: istringstream ss ( inputLine );
+            istringstream ss ( inputLine );
 
             // Read the user command
-            std :: string command;
+            string command;
             ss >> command;         // Just like 'cin >> command;'
 
             // Check which command the user has input
@@ -302,7 +256,14 @@ main ( int argc , char **argv ) {
              */
             // HELP
             if ( command == "help" ) {
-                std :: cout << "Commands: show talk yell creategroup discuss leavegroup help exit\n";
+    			cout<< "1. show : Show all users online\n"
+        	 		<< "2. talk <user> <message> : Send message to user\n"
+         			<< "3. yell <message> : Send message to all users\n"
+         			<< "4. creategroup <user1> <user2> ... : Create group chat\n"
+         			<< "5. discuss <message> : Send message to users in the group chat\n"
+         			<< "6. leavegroup : Leave group chat\n"
+         			<< "7. help : Display all commands\n"
+         			<< "8. exit : Disconnect from Chat server\n\n";
             }
 
             // EXIT
@@ -314,14 +275,14 @@ main ( int argc , char **argv ) {
     			// Length (we will fill this later on)
     			putNextUint16 ( replyBuffer , replyOffset , 0 );
     			// Cookie (Need to use the Cookie assigned by ChatServer)
-    			putNextUint32 ( replyBuffer , replyOffset , 0 );
+    			putNextUint32 ( replyBuffer , replyOffset , cookie );
     			// User name
     			putNextString ( replyBuffer , replyOffset , userName );
     			// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
     			putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
 
     			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
-        			std :: cerr << "Error on send()\n";
+        			cerr << "Error on send()\n";
         			close ( socketFD );
         			return -1;
     			}
@@ -343,7 +304,7 @@ main ( int argc , char **argv ) {
     			putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
 
     			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
-        			std :: cerr << "Error on send()\n";
+        			cerr << "Error on send()\n";
         			close ( socketFD );
         			return -1;
     			}
@@ -363,8 +324,8 @@ main ( int argc , char **argv ) {
     			// Cookie
     			putNextUint32 ( replyBuffer , replyOffset , cookie );
 
-                std :: string receiverName;
-				std :: string message;
+                string receiverName;
+				string message;
                 ss >> receiverName;
 				// Sender Name
 				putNextString ( replyBuffer, replyOffset, userName);
@@ -384,7 +345,7 @@ main ( int argc , char **argv ) {
     			putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
 
     			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
-        			std :: cerr << "Error on send()\n";
+        			cerr << "Error on send()\n";
         			close ( socketFD );
         			return -1;
     			}
@@ -394,6 +355,36 @@ main ( int argc , char **argv ) {
 
             // YELL
             else if ( command == "yell" ) {
+				// Send a YELL request to the server
+    			replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+    			// Request Type
+    			putNextUint16 ( replyBuffer , replyOffset , REQUEST_YELL );
+    			// Length (we will fill this later on)
+    			putNextUint16 ( replyBuffer , replyOffset , 0 );
+    			// Cookie
+    			putNextUint32 ( replyBuffer , replyOffset , cookie );
+				
+				string message;
+                while ( ss ) {
+					ss >> message;
+
+                    // To eliminate the classic "last string repeating twice problem"
+                    if ( ss )
+                        putNextString ( replyBuffer , replyOffset , message );
+                }
+                // Terminate with two NULLs (i.e. terminate with an empty string)
+                putNextString ( replyBuffer , replyOffset , "" );
+
+    			// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
+    			putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
+
+    			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
+        			cerr << "Error on send()\n";
+        			close ( socketFD );
+        			return -1;
+    			}
+				
+				continue;
             }
 
             // DISCUSS
@@ -406,13 +397,22 @@ main ( int argc , char **argv ) {
 
             // CREATEGROUP
             else if ( command == "creategroup" ) {
+				
+				// Send a YELL request to the server
+    			replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+    			// Request Type
+    			putNextUint16 ( replyBuffer , replyOffset , REQUEST_CREATEGROUP );
+    			// Length (we will fill this later on)
+    			putNextUint16 ( replyBuffer , replyOffset , 0 );
+    			// Cookie
+    			putNextUint32 ( replyBuffer , replyOffset , cookie );
 
                 /*
                  * To read names from the input one by one, you
                  * can use the following while loop
                  */
-
-                std :: string groupUserName;
+				
+                string groupUserName;
                 while ( ss ) {
                     ss >> groupUserName;
 
@@ -422,18 +422,28 @@ main ( int argc , char **argv ) {
                 }
                 // Terminate with two NULLs (i.e. terminate with an empty string)
                 putNextString ( replyBuffer , replyOffset , "" );
+    			// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
+    			putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
+
+    			if ( send ( socketFD , replyBuffer , replyOffset , 0 ) < 0 ) {
+        			cerr << "Error on send()\n";
+        			close ( socketFD );
+        			return -1;
+    			}
+				
+				continue;
 
                 // etc...
             }
 
             // Wrong command
             else {
-                std :: cout << "Incorrect command, type 'help' to see the commands\n";
+                cout << "Incorrect command, type 'help' to see the commands\n";
             }
 
             // Output the next prompt
-            std :: cout << "> ";
-            std :: cout.flush();
+            cout << "> ";
+            cout.flush();
         }
 
         // Socket input from the server
@@ -452,27 +462,17 @@ main ( int argc , char **argv ) {
              * block forever. But for this assignment, it is ok, you are not required to do this.
              */
 
- 			/* All Responses from the Server start with the following Response
- 			 * Header:
- 			 *
- 			 *  |------------------------------------------|
- 			 *  |    Response Type    |       Length       |
- 			 *  |------------------------------------------|
- 			 *  |                  Status                  |
- 			 *  |------------------------------------------|
-			 */
-
             // Step 1: First, get the 'type' and 'length' of the packet (first 2 fields are total 4 bytes)
             size_t bufferSize = sizeof ( uint16_t ) + sizeof ( uint16_t );
             char *buffer = new char[ bufferSize ];
             if ( buffer == NULL ) {
-                std :: cerr << "Error: Heap Over\n";
+                cerr << "Error: Heap Over\n";
                 close ( socketFD );
                 return -1;
             }
             // The flag MSG_WAITALL ensures that we get the all the 4 bytes in one recv()
             if ( recv ( socketFD , buffer , bufferSize , MSG_WAITALL ) < bufferSize ) {
-                std :: cerr << "Error on recv(), did server terminate?\n";
+                cerr << "Error on recv(), did server terminate?\n";
                 close ( socketFD );
                 return -1;
             }
@@ -487,12 +487,12 @@ main ( int argc , char **argv ) {
             bufferSize = length - ( sizeof ( uint16_t ) + sizeof ( uint16_t ) );
             buffer = new char[ bufferSize ];
             if ( buffer == NULL ) {
-                std :: cerr << "Error: Heap Over\n";
+                cerr << "Error: Heap Over\n";
                 close ( socketFD );
                 return -1;
             }
             if ( recv ( socketFD , buffer , bufferSize , MSG_WAITALL ) < bufferSize ) {
-                std :: cerr << "Error on recv(), did server terminate?\n";
+                cerr << "Error on recv(), did server terminate?\n";
                 close ( socketFD );
                 return -1;
             }
@@ -514,17 +514,57 @@ main ( int argc , char **argv ) {
 					if (status == STATUS_SUCCESS)
 					{
 						int i = 1;
-						std::cout << "=== Users Online ===" << std::endl;
-						std::string names = getNextString(buffer, offset);
+						cout << "=== Users Online ===" << endl;
+						string names = getNextString(buffer, offset);
 						while (names != "")
 						{
 							if (names == userName)
-								std::cout << i << ". " << names << " (you)" << std::endl;
+								cout << i << ". " << names << " (you)" << endl;
 							else
-								std::cout << i << ". " << names << std::endl;
+								cout << i << ". " << names << endl;
 							names = getNextString(buffer, offset);
 							++i;
 						}
+					}
+
+                    // etc...
+
+                    break;
+                }
+				
+                case RESPONSE_YELL: {
+
+                    uint32_t status = getNextUint32 ( buffer , offset );
+
+					if (status == STATUS_SUCCESS)
+					{
+						;
+					}
+					else if (status == ERROR_NO_USER_ONLINE)
+					{
+						cerr<< "There is no other user online" << endl;
+					}
+
+                    // etc...
+
+                    break;
+                }
+
+                case RESPONSE_YELL_FWD: {
+
+                    uint32_t status = getNextUint32 ( buffer , offset );
+					string senderName = getNextString(buffer, offset);
+					string message = getNextString(buffer, offset);
+
+					if (status == STATUS_SUCCESS)
+					{
+						cout << endl << senderName << " says: ";
+						while (message != "")
+						{
+							cout << message << " ";
+							message = getNextString (buffer, offset);
+						}
+						cout << endl;
 					}
 
                     // etc...
@@ -536,9 +576,13 @@ main ( int argc , char **argv ) {
 
                     uint32_t status = getNextUint32 ( buffer , offset );
 
-					if (status == ERROR_USER_NOT_FOUND)
+					if (status == STATUS_SUCCESS)
 					{
-						std::cerr<< "No such user" << std::endl;
+						;
+					}
+					else if (status == ERROR_USER_NOT_FOUND)
+					{
+						cerr<< "No such user" << endl;
 					}
 
                     // etc...
@@ -549,19 +593,19 @@ main ( int argc , char **argv ) {
                 case RESPONSE_TALK_FWD: {
 
                     uint32_t status = getNextUint32 ( buffer , offset );
-					std::string senderName = getNextString(buffer, offset);
-					std::string receiverName = getNextString(buffer, offset);
-					std::string message = getNextString(buffer, offset);
+					string senderName = getNextString(buffer, offset);
+					string receiverName = getNextString(buffer, offset);
+					string message = getNextString(buffer, offset);
 
 					if (status == STATUS_SUCCESS)
 					{
-						std::cout << std::endl << senderName << " says: ";
+						cout << endl << senderName << " says: ";
 						while (message != "")
 						{
-							std::cout << message << " ";
+							cout << message << " ";
 							message = getNextString (buffer, offset);
 						}
-						std::cout << std::endl;
+						cout << endl;
 					}
 
                     // etc...
@@ -576,7 +620,7 @@ main ( int argc , char **argv ) {
                     // etc...
 					if (status == STATUS_SUCCESS)
 					{
-						std::cout << "You have logged out" << std::endl;
+						cout << "You have logged out" << endl;
 
 	            		delete[] buffer;
 	   				 	close ( socketFD );
@@ -586,7 +630,7 @@ main ( int argc , char **argv ) {
 	                }
 					else
 					{
-						std::cout << "Exit failed" << std::endl;
+						cout << "Exit failed" << endl;
 						break;
 					}
 				}
@@ -594,32 +638,32 @@ main ( int argc , char **argv ) {
                 case RESPONSE_EXIT_FWD: {
 
                     uint32_t status = getNextUint32 ( buffer , offset );
-					std::string senderName = getNextString (buffer, offset);
+					string senderName = getNextString (buffer, offset);
 
                     // etc...
 					if (status == STATUS_SUCCESS)
 					{
-						std::cout << std::endl << senderName << " has logged out" << std::endl;
+						cout << endl << senderName << " has logged out" << endl;
 						break;
 	                }
 					else
 					{
-						std::cout << "Errorneous packet" << std::endl;
+						cout << "Errorneous packet" << endl;
 						break;
 					}
 				}
                 // etc...
 
                 default: {
-                    std :: cerr << "\nError: Unknown packet from server\n";
+                    cerr << "\nError: Unknown packet from server\n";
                     close ( socketFD );
                     return -1;
                 }
             }
 
             // Output next prompt if required
-            std :: cout << "> ";
-            std :: cout.flush();
+            cout << "> ";
+            cout.flush();
 
             // Deallocate receive buffer
             delete[] buffer;
@@ -635,8 +679,7 @@ main ( int argc , char **argv ) {
     return 0;
 }
 
-std :: string
-getNextString ( const char *buffer , int &offset ) {
+string getNextString ( const char *buffer , int &offset ) {
 
     char nextString [ MAX_CHAT_LENGTH ];
 
@@ -649,11 +692,10 @@ getNextString ( const char *buffer , int &offset ) {
     nextString[i - 1] = '\0';
 
     // The value of offset is now ready for the next call to getNextThing()
-    return std :: string ( nextString );
+    return string ( nextString );
 }
 
-uint32_t
-getNextUint32 ( const char *buffer , int &offset ) {
+uint32_t getNextUint32 ( const char *buffer , int &offset ) {
 
     // Read the next uint32_t
     uint32_t value;
@@ -667,8 +709,7 @@ getNextUint32 ( const char *buffer , int &offset ) {
     return value;
 }
 
-uint16_t
-getNextUint16 ( const char *buffer , int &offset ) {
+uint16_t getNextUint16 ( const char *buffer , int &offset ) {
 
     // Read the next uint16_t
     uint16_t value;
@@ -682,8 +723,7 @@ getNextUint16 ( const char *buffer , int &offset ) {
     return value;
 }
 
-void
-putNextString ( char *buffer , int &offset , const std :: string &nextString ) {
+void putNextString ( char *buffer , int &offset , const string &nextString ) {
 
     // Write the string byte by byte till we reach NULL
     int i = 0;
@@ -694,8 +734,7 @@ putNextString ( char *buffer , int &offset , const std :: string &nextString ) {
     // The value of offset is now ready for the next call to putNextThing()
 }
 
-void
-putNextUint32 ( char *buffer , int &offset , uint32_t nextUint32 ) {
+void putNextUint32 ( char *buffer , int &offset , uint32_t nextUint32 ) {
 
     // Convert from Host to Network order
     nextUint32 = htonl ( nextUint32 );
@@ -707,8 +746,7 @@ putNextUint32 ( char *buffer , int &offset , uint32_t nextUint32 ) {
     offset += sizeof ( uint32_t );
 }
 
-void
-putNextUint16 ( char *buffer , int &offset , uint16_t nextUint16 ) {
+void putNextUint16 ( char *buffer , int &offset , uint16_t nextUint16 ) {
 
     // Convert from Host to Network order
     nextUint16 = htons ( nextUint16 );

@@ -165,6 +165,7 @@ enum {
     ERROR_COOKIE_INVALID    = 1 ,
 	ERROR_USERNAME			= 2 ,
 	ERROR_USER_NOT_FOUND	= 3 ,
+	ERROR_NO_USER_ONLINE	= 4 ,
 
     // etc ...
 
