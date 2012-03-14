@@ -1,15 +1,4 @@
-/**
- * @file
- * @brief  Server side of the Chat Application
- *
- * @details  In this simple implementation,
- *   The server receives requests from the client and
- *   generates appropriate responses. For each new client, the
- *   server creates a new pthread to handle it. The connection between
- *   the server and client is done over TCP.
- *
- * @author  Kartik S
- */
+// ChatServer.cpp
 
 #include <iostream>
 #include <cstdlib>
@@ -595,27 +584,34 @@ void* clientThread ( void *args ) {
 			case REQUEST_CREATEGROUP: {
 				// Get the cookie value from the packet
 				uint32_t cookie;
-				cookie = getNextUint32(buffer, offset);	
-				string userName;	
+				cookie = getNextUint32(buffer, offset);		
 				int receiverSocketFD;
 
-					currentUser.userName = userName;
-					currentUser.socketFD = socketFD;
-					currentUser.cookie = ntohs ( clientAddress.sin_port );
-					currentUser.groupChatStatus = GROUPCHAT_EMPTY;
-					currentUser.groupChatUsers = &groupList; 
-
-				for (int i = 0; i < userList.size(); i++)
+				// gather names of invited users
+				// including the creator of the group
+				(currentUser.groupChatUsers)->push_back(currentUser.userName);
+				string message = getNextString (buffer, offset);
+				while (message != "")
 				{
-					if (userList.at(i).cookie == cookie)
-					{
-						userName = userList.at(i).userName;
-						break;
-					}
+//					for (int i = 0; i < userList.size(); i++)
+//					{
+//						if (userList.at(i).userName == message)
+//						{
+//							userName = userList.at(i).userName;
+//							break;
+//						}
+//					}
+					(currentUser.groupChatUsers)->push_back(message);
+					message = getNextString (buffer, offset);
 				}
 
-				if (userList.size() == 1)
-					status = ERROR_NO_USER_ONLINE;
+				currentUser.groupChatStatus = GROUPCHAT_PENDING;
+
+//					currentUser.userName = userName;
+//					currentUser.socketFD = socketFD;
+//					currentUser.cookie = ntohs ( clientAddress.sin_port );
+//					currentUser.groupChatStatus = GROUPCHAT_EMPTY;
+//					currentUser.groupChatUsers = &groupList; 
 				
 				if (status == STATUS_SUCCESS)
 				{
@@ -626,22 +622,18 @@ void* clientThread ( void *args ) {
 					// Login Response packet to the Client
     				replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
     				// Response Type
-    				putNextUint16 ( replyBuffer , replyOffset , RESPONSE_YELL_FWD );
+    				putNextUint16 ( replyBuffer , replyOffset , RESPONSE_CREATEGROUP_FWD);
     				// Length (we will fill this later on)
     				putNextUint16 ( replyBuffer , replyOffset , 0 );
     				// Status
     				putNextUint32 ( replyBuffer , replyOffset , status );
     				// Sender Name
-    				putNextString ( replyBuffer , replyOffset , userName );
-					// Packet Message
-					string message = getNextString (buffer, offset);
-					while (message != "")
+    				putNextString ( replyBuffer , replyOffset , currentUser.userName );
+					// invited namelist
+					for (int j = 0; j < (currentUser.groupChatUsers)->size(); j++)
 					{
-    					putNextString ( replyBuffer , replyOffset , message );
-						message = getNextString (buffer, offset);
+						putNextString(replyBuffer, replyOffset, (currentUser.groupChatUsers)->at(j));
 					}
-                	// Terminate with two NULLs (i.e. terminate with an empty string)
-                	putNextString ( replyBuffer , replyOffset , "" );
     				// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
     				putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
 					///////////////////////////////
@@ -649,17 +641,25 @@ void* clientThread ( void *args ) {
                 	// Unlock the Data structure
                 	pthread_rwlock_unlock ( &userDataLock );
 					
-					// send to all online users
-					for (int i = 0; i < userList.size(); i++)
+					// send to invited users
+					for (int j = 0; j < (currentUser.groupChatUsers)->size(); j++)		
 					{
-						if (userList.at(i).cookie != cookie)
+						if ((currentUser.groupChatUsers)->at(j) == currentUser.userName)
+							continue;
+
+						for (int i = 0; i < userList.size(); i++)
 						{
-							receiverSocketFD = userList.at(i).socketFD;
-    						if ( send ( receiverSocketFD , replyBuffer , replyOffset , 0 ) < 0 )
+							if (userList.at(i).userName == (currentUser.groupChatUsers)->at(j))
 							{
-        						cerr << "Error on send()\n";
-       				 			close ( receiverSocketFD );
-    						}
+								userList.at(i).groupChatStatus = GROUPCHAT_PENDING;
+								receiverSocketFD = userList.at(i).socketFD;
+	    						if ( send ( receiverSocketFD , replyBuffer , replyOffset , 0 ) < 0 )
+								{
+	        						cerr << "Error on send()\n";
+	       				 			close ( receiverSocketFD );
+	    						}
+								break;
+							}
 						}
 					}
 				}
@@ -681,7 +681,7 @@ void* clientThread ( void *args ) {
 				// Login Response packet to the Client
    				replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
    				// Request Type
-   				putNextUint16 ( replyBuffer , replyOffset , RESPONSE_YELL );
+   				putNextUint16 ( replyBuffer , replyOffset , RESPONSE_CREATEGROUP );
    				// Length (we will fill this later on)
    				putNextUint16 ( replyBuffer , replyOffset , 0 );
    				// Status

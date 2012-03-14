@@ -398,7 +398,7 @@ int main ( int argc , char **argv ) {
             // CREATEGROUP
             else if ( command == "creategroup" ) {
 				
-				// Send a YELL request to the server
+				// Send a CREATEGROUP request to the server
     			replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
     			// Request Type
     			putNextUint16 ( replyBuffer , replyOffset , REQUEST_CREATEGROUP );
@@ -613,6 +613,76 @@ int main ( int argc , char **argv ) {
                     break;
                 }
 
+                case RESPONSE_CREATEGROUP: {
+
+                    uint32_t status = getNextUint32 ( buffer , offset );
+
+					if (status == STATUS_SUCCESS)
+					{
+						cout << "Group chat request sent" << endl;
+					}
+
+                    // etc...
+
+                    break;
+                }
+
+				case RESPONSE_CREATEGROUP_FWD: {
+
+                    uint32_t status = getNextUint32 ( buffer , offset );
+					string senderName = getNextString (buffer, offset);
+					string message = getNextString(buffer, offset);
+					string invitationMessage;
+					string userResponse;
+
+					if (status == STATUS_SUCCESS)
+					{
+						// You received an invitation from bob to group chat with {bob, ted}
+						// Accept? (y/n):
+
+						invitationMessage = "\nYou received an invitation from " + senderName + " to group chat with {";
+						while (message != "")
+						{
+							invitationMessage += message;
+							message = getNextString (buffer, offset);
+							if (message != "")
+								invitationMessage += ", ";
+						}
+						invitationMessage += "}";
+						invitationMessage += "\nAccept? (y/n): ";
+						while ((userResponse != "y") && (userResponse != "n"))
+						{
+							cout << invitationMessage;
+							cin >> userResponse;
+						}
+
+						uint16_t group_response;
+						if (userResponse == "y")
+							group_response = ACCEPT_GROUP;
+						else	// userReponse = "n"
+							group_response = REJECT_GROUP;
+
+						// Send a JOINGROUP request to the server
+    					replyOffset = 0 , lengthOffset = LENGTH_FIELD_OFFSET;
+    					// Request Type
+    					putNextUint16 ( replyBuffer , replyOffset , REQUEST_JOINGROUP );
+    					// Length (we will fill this later on)
+    					putNextUint16 ( replyBuffer , replyOffset , 0 );
+    					// Cookie
+    					putNextUint32 ( replyBuffer , replyOffset , cookie );
+						// Response
+						putNextUint16 ( replyBuffer , replyOffset , group_response );
+    					// Now 'replyOffset' has the number of bytes we put in the buffer, we can now write the length
+    					putNextUint16 ( replyBuffer , lengthOffset , replyOffset );
+						
+						
+					}
+
+                    // etc...
+
+                    break;
+                }
+
                 case RESPONSE_EXIT: {
 
                     uint32_t status = getNextUint32 ( buffer , offset );
@@ -647,10 +717,7 @@ int main ( int argc , char **argv ) {
 						break;
 	                }
 					else
-					{
-						cout << "Errorneous packet" << endl;
 						break;
-					}
 				}
                 // etc...
 

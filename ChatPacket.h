@@ -1,12 +1,4 @@
-/**
- * @file
- * @brief    Packet formats for the chat protocol
- *
- * @details  I have provided you with some example packet formats,
- *   for you to use as a guideline.
- *
- * @author  Kartik S
- */
+// ChatPacket.h
 
 #ifndef __ChatPacket_h
 #define __ChatPacket_h
@@ -86,18 +78,6 @@
  * online).
  */
 
-/*
- * You need to think about the other packet formats yourselves. This
- * was just an few examples as guidelines.
- *
- * I have given you some helper functions to read/write packet bytes
- * easily (see the .cpp files)
- */
-
-/*
- * You can either use structures, or read/write the fields individually
- * using the helper functions.
- */
 
 /**
  * @brief  Request Header
@@ -117,6 +97,12 @@ struct ResponseHeader {
     uint32_t status;         ///< Status (SUCCESS/ERROR CODE)
 };
 
+// group accept response
+enum {
+	REJECT_GROUP		= 0 ,
+	ACCEPT_GROUP		= 1
+};
+
 /**
  * @brief  Request Types
  */
@@ -130,7 +116,7 @@ enum {
     REQUEST_LEAVEGROUP	= 7 ,
     REQUEST_HELP	  	= 8 ,
     REQUEST_EXIT	  	= 9 ,
-	REQUEST_JOINGROUP	= 51
+	REQUEST_JOINGROUP	= 10
     // etc...
 };
 
@@ -138,20 +124,21 @@ enum {
  * @brief  Response Types
  */
 enum {
-    RESPONSE_LOGIN			= 11 ,
-    RESPONSE_SHOW			= 12 ,
-    RESPONSE_TALK			= 13 ,
-    RESPONSE_YELL			= 14 ,
-    RESPONSE_CREATEGROUP	= 15 ,
-    RESPONSE_DISCUSS    	= 16 ,
-    RESPONSE_LEAVEGROUP	    = 17 ,
-    RESPONSE_HELP    	    = 18 ,
-    RESPONSE_EXIT    	    = 19 ,
-	RESPONSE_TALK_FWD		= 131,
-	RESPONSE_YELL_FWD		= 141,
-	RESPONSE_JOINGROUP_FWD	= 151,
-	RESPONSE_DISCUSS_FWD	= 161,
-    RESPONSE_EXIT_FWD		= 191
+    RESPONSE_LOGIN				= 11 ,
+    RESPONSE_SHOW				= 12 ,
+    RESPONSE_TALK				= 13 ,
+    RESPONSE_YELL				= 14 ,
+    RESPONSE_CREATEGROUP		= 15 ,
+    RESPONSE_DISCUSS    		= 16 ,
+    RESPONSE_LEAVEGROUP	    	= 17 ,
+    RESPONSE_HELP    	   		= 18 ,
+    RESPONSE_EXIT    	    	= 19 ,
+	RESPONSE_TALK_FWD			= 131,
+	RESPONSE_YELL_FWD			= 141,
+	RESPONSE_CREATEGROUP_FWD	= 151,
+	RESPONSE_DISCUSS_FWD		= 161,
+    RESPONSE_EXIT_FWD			= 191,
+	RESPONSE_JOINGROUP_FWD		= 101
 	
 
     // etc ...
@@ -166,8 +153,8 @@ enum {
 	ERROR_USERNAME			= 2 ,
 	ERROR_USER_NOT_FOUND	= 3 ,
 	ERROR_NO_USER_ONLINE	= 4 ,
+	ERROR_EXIT_IN_GROUP			= 5 ,
 
-    // etc ...
 
     ERROR_UNKNOWN           = 1024
 };
